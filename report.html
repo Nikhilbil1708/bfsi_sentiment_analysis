@@ -1,0 +1,715 @@
+<title>BFSI Sentiment SLM — Fine-Tuning Report</title>
+<style>
+  :root {
+    --paper: #f2f1ec;
+    --paper-raised: #ffffff;
+    --ink: #1b1b18;
+    --navy: #223247;
+    --slate: #5b6472;
+    --brass: #9c6b2e;
+    --brass-soft: #c99a5b;
+    --line: #dedbd2;
+    --good: #3f7a5c;
+    --bad: #a3492f;
+    --code-bg: #e9e6dd;
+    --shadow: 0 1px 2px rgba(34, 50, 71, 0.06), 0 8px 24px rgba(34, 50, 71, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14171b;
+      --paper-raised: #1b1f25;
+      --ink: #e7e4da;
+      --navy: #a9bdd6;
+      --slate: #8b93a0;
+      --brass: #d69a4e;
+      --brass-soft: #8a6636;
+      --line: #2a2e35;
+      --good: #6fbd95;
+      --bad: #d97c5f;
+      --code-bg: #20242b;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14171b;
+    --paper-raised: #1b1f25;
+    --ink: #e7e4da;
+    --navy: #a9bdd6;
+    --slate: #8b93a0;
+    --brass: #d69a4e;
+    --brass-soft: #8a6636;
+    --line: #2a2e35;
+    --good: #6fbd95;
+    --bad: #d97c5f;
+    --code-bg: #20242b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    --paper: #f2f1ec;
+    --paper-raised: #ffffff;
+    --ink: #1b1b18;
+    --navy: #223247;
+    --slate: #5b6472;
+    --brass: #9c6b2e;
+    --brass-soft: #c99a5b;
+    --line: #dedbd2;
+    --good: #3f7a5c;
+    --bad: #a3492f;
+    --code-bg: #e9e6dd;
+    --shadow: 0 1px 2px rgba(34, 50, 71, 0.06), 0 8px 24px rgba(34, 50, 71, 0.05);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", serif;
+    color: var(--navy);
+    text-wrap: balance;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  code, pre, .mono, .tnum, td.num, th.num {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a { color: var(--brass); }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  header.masthead {
+    padding: 56px 0 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin: 0 0 14px;
+  }
+  h1.title {
+    font-size: clamp(28px, 4vw, 42px);
+    margin: 0 0 12px;
+    max-width: 18ch;
+  }
+  p.subtitle {
+    font-size: 17px;
+    color: var(--slate);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+  .meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-size: 13.5px;
+    color: var(--slate);
+  }
+  .meta-strip strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--good) 16%, transparent);
+    color: var(--good);
+    font-weight: 600;
+    font-size: 12.5px;
+  }
+  .status-pill::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--good);
+  }
+
+  /* ---------- Layout: rail + content ---------- */
+  .layout {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 56px;
+    padding-top: 40px;
+  }
+  nav.rail {
+    position: sticky;
+    top: 32px;
+    align-self: start;
+    font-size: 13.5px;
+  }
+  nav.rail ol {
+    list-style: none;
+    margin: 0; padding: 0;
+    border-left: 1px solid var(--line);
+  }
+  nav.rail li { margin: 0; }
+  nav.rail a {
+    display: block;
+    padding: 6px 0 6px 16px;
+    margin-left: -1px;
+    border-left: 1px solid transparent;
+    color: var(--slate);
+    text-decoration: none;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  nav.rail a:hover { color: var(--ink); }
+  nav.rail a.active {
+    color: var(--brass);
+    border-left-color: var(--brass);
+    font-weight: 600;
+  }
+
+  main { min-width: 0; }
+
+  section.block {
+    padding-bottom: 52px;
+    margin-bottom: 52px;
+    border-bottom: 1px solid var(--line);
+  }
+  section.block:last-child { border-bottom: none; }
+
+  section.block h2 {
+    font-size: 24px;
+    margin: 0 0 6px;
+  }
+  .section-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--slate);
+    margin: 0 0 8px;
+  }
+  section.block > p { max-width: 68ch; }
+  section.block h3 {
+    font-size: 16.5px;
+    margin: 28px 0 10px;
+  }
+
+  .lede {
+    font-size: 17px;
+    color: var(--ink);
+    max-width: 66ch;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap { overflow-x: auto; margin: 18px 0 6px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--slate);
+    font-weight: 600;
+    border-bottom: 1px solid var(--ink);
+  }
+  td.num, th.num { text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  table.zebra tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--ink) 3%, transparent); }
+  caption {
+    caption-side: bottom;
+    text-align: left;
+    font-size: 12.5px;
+    color: var(--slate);
+    padding-top: 8px;
+  }
+
+  /* inline metric bar */
+  .metric-cell { display: flex; align-items: center; gap: 10px; }
+  .metric-cell .val { min-width: 4.2em; text-align: right; }
+  .bar {
+    flex: 1 1 auto;
+    max-width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    background: var(--brass);
+    border-radius: 3px;
+  }
+
+  /* ---------- Code / config blocks ---------- */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  code.inline {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.88em;
+  }
+
+  /* ---------- Architecture diagram ---------- */
+  .diagram {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 24px 0 8px;
+    font-size: 13.5px;
+  }
+  .diagram .node {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .diagram .node .label { font-weight: 600; }
+  .diagram .node .sub { color: var(--slate); font-size: 12px; }
+  .diagram .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    color: var(--slate);
+    font-size: 18px;
+  }
+  .diagram .split {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+  }
+  @media (max-width: 720px) {
+    .diagram { flex-direction: column; }
+    .diagram .arrow { transform: rotate(90deg); padding: 6px 0; }
+  }
+
+  /* ---------- Incident log ---------- */
+  .incident {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--bad);
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    background: var(--paper-raised);
+  }
+  .incident h4 {
+    margin: 0 0 6px;
+    font-size: 14.5px;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .incident p { margin: 4px 0; font-size: 14px; color: var(--slate); max-width: 70ch; }
+  .incident p strong { color: var(--ink); }
+
+  /* ---------- Callout ---------- */
+  .callout {
+    background: color-mix(in srgb, var(--brass) 10%, var(--paper-raised));
+    border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-size: 14.5px;
+    max-width: 68ch;
+  }
+  .callout strong { color: var(--brass); }
+
+  ul.tight, ol.tight { padding-left: 20px; max-width: 66ch; }
+  ul.tight li, ol.tight li { margin-bottom: 6px; }
+
+  footer.colophon {
+    padding-top: 40px;
+    font-size: 12.5px;
+    color: var(--slate);
+  }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.rail {
+      position: static;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+      margin-bottom: 8px;
+    }
+    nav.rail ol {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 18px;
+      border-left: none;
+    }
+    nav.rail a { padding: 4px 0; border-left: none; }
+    nav.rail a.active { border-left: none; text-decoration: underline; }
+  }
+</style>
+
+<div class="shell">
+  <header class="masthead">
+    <p class="eyebrow">Training Report · SLM_Training</p>
+    <h1 class="title">BFSI Sentiment SLM — Fine-Tuning Report</h1>
+    <p class="subtitle">A dual-head FinBERT + LoRA classifier that reads US BFSI text and returns sentiment and market-impact in a single CPU inference call.</p>
+    <div class="meta-strip">
+      <span><strong>Date</strong> 2026-07-06</span>
+      <span><strong>Base model</strong> ProsusAI/finbert (110M params)</span>
+      <span><strong>Hardware</strong> CPU only, no CUDA</span>
+      <span class="status-pill">Trained · uploaded to Drive</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="rail" aria-label="Report sections">
+      <ol id="toc">
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#constraints">Hardware &amp; Constraints</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#lora">LoRA Configuration</a></li>
+        <li><a href="#data">Data Pipeline</a></li>
+        <li><a href="#training-config">Training Configuration</a></li>
+        <li><a href="#results">Training Run &amp; Results</a></li>
+        <li><a href="#evaluation">Full Evaluation</a></li>
+        <li><a href="#storage">Storage &amp; Drive</a></li>
+        <li><a href="#issues">Issues Found &amp; Fixed</a></li>
+        <li><a href="#next">Next Steps</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section class="block" id="overview">
+        <p class="section-eyebrow">01 · What this is</p>
+        <h2>Overview</h2>
+        <p class="lede">The project fine-tunes FinBERT with LoRA adapters to produce two labels per input text — <strong>sentiment</strong> (positive / neutral / negative) and <strong>market impact</strong> (bullish / neutral / bearish) — from a single forward pass through one shared encoder with two independent classification heads.</p>
+        <p>The intended consumer is <code class="inline">predict.py</code>, called directly from a market-research pipeline in place of an LLM sentiment call — deterministic, free, and fast enough to run locally on headlines, earnings-call snippets, 8-K passages, and Fed announcement text.</p>
+      </section>
+
+      <section class="block" id="constraints">
+        <p class="section-eyebrow">02 · Why the setup looks like this</p>
+        <h2>Hardware &amp; Constraints</h2>
+        <p>Training runs entirely on a CPU laptop — there is no dedicated NVIDIA GPU available, which rules out QLoRA's 4-bit quantization (a CUDA-only path). The project instead uses plain LoRA against a small, finance-pretrained base model, which keeps the trainable footprint tiny without needing quantization at all.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Constraint</th><th>Consequence</th></tr></thead>
+            <tbody>
+              <tr><td>No CUDA GPU</td><td>QLoRA is unavailable; plain LoRA adapters used instead</td></tr>
+              <tr><td>Base model ≤ 500M params</td><td><code class="inline">ProsusAI/finbert</code> (110M) chosen over Llama/Mistral/GPT-2-medium class models</td></tr>
+              <tr><td>Batch size ≤ 8</td><td>Larger batches don't speed up CPU training; kept fixed at 8</td></tr>
+              <tr><td>Weights &amp; data off-disk</td><td>All artifacts round-trip through Google Drive via <code class="inline">drive_storage.py</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>FinBERT already carries financial vocabulary — earnings terminology, banking-sector language, regulatory phrasing — from its Reuters/Bloomberg/Financial Times pretraining. That means the LoRA adapters only need to learn the six-class label scheme, not financial language itself, which is what makes a small dataset and CPU-only training viable at all.</p>
+      </section>
+
+      <section class="block" id="architecture">
+        <p class="section-eyebrow">03 · Model shape</p>
+        <h2>Architecture</h2>
+        <p>A single <code class="inline">BFSISentimentModel</code> wraps the FinBERT encoder in a LoRA adapter, pools the <code class="inline">[CLS]</code> token, and feeds it into two separate linear heads — one per task. Both predictions come from one encoder pass.</p>
+
+        <div class="diagram" role="img" aria-label="Input text flows through tokenizer, FinBERT with LoRA adapters, CLS pooling, then splits into a sentiment head and an impact head">
+          <div class="node"><span class="label">Input text</span><span class="sub">BFSI headline / snippet</span></div>
+          <div class="arrow">→</div>
+          <div class="node"><span class="label">Tokenizer</span><span class="sub">max 128 tokens</span></div>
+          <div class="arrow">→</div>
+          <div class="node"><span class="label">FinBERT + LoRA</span><span class="sub">110M frozen · adapters on query/value</span></div>
+          <div class="arrow">→</div>
+          <div class="node"><span class="label">[CLS] embedding</span><span class="sub">768-dim</span></div>
+          <div class="arrow">→</div>
+          <div class="split">
+            <div class="node"><span class="label">Sentiment head</span><span class="sub">Linear 768 → 3</span></div>
+            <div class="node"><span class="label">Impact head</span><span class="sub">Linear 768 → 3</span></div>
+          </div>
+        </div>
+
+        <h3>Why query/value only</h3>
+        <p>LoRA adapters attach to the attention <code class="inline">query</code> and <code class="inline">value</code> projections only, skipping <code class="inline">key</code>. Adding key typically improves accuracy by under 1% while adding meaningful CPU training time — not a good trade at this scale.</p>
+      </section>
+
+      <section class="block" id="lora">
+        <p class="section-eyebrow">04 · Adapter configuration</p>
+        <h2>LoRA Configuration</h2>
+        <div class="table-wrap">
+          <table class="zebra">
+            <thead><tr><th>Parameter</th><th class="num">Value</th><th>Rationale</th></tr></thead>
+            <tbody>
+              <tr><td>r (rank)</td><td class="num tnum">8</td><td>Enough directions to learn a 3-class label scheme on a model that already understands finance</td></tr>
+              <tr><td>lora_alpha</td><td class="num tnum">32</td><td>4× rank — standard scaling starting point</td></tr>
+              <tr><td>lora_dropout</td><td class="num tnum">0.1</td><td>Regularization for a comparatively small dataset</td></tr>
+              <tr><td>target_modules</td><td class="num tnum">query, value</td><td>Best accuracy-per-parameter ratio for classification</td></tr>
+              <tr><td>task_type</td><td class="num tnum">FEATURE_EXTRACTION</td><td>Encoder used for pooled embeddings, not a built-in classification head</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Measured vs. estimated footprint</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th class="num">Trainable params</th><th class="num">Total params</th><th class="num">Trainable %</th></tr></thead>
+            <tbody>
+              <tr><td>Design estimate</td><td class="num tnum">887,808</td><td class="num tnum">110,062,592</td><td class="num tnum">0.807%</td></tr>
+              <tr><td>Actual run</td><td class="num tnum">294,912</td><td class="num tnum">109,777,152</td><td class="num tnum">0.269%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The installed <code class="inline">peft</code> release (0.19.1) trained fewer parameters than the design doc's illustrative estimate — still under 0.3% of the model, so the core LoRA premise (near-all-frozen encoder) holds regardless of the exact figure.</p>
+      </section>
+
+      <section class="block" id="data">
+        <p class="section-eyebrow">05 · Training data</p>
+        <h2>Data Pipeline</h2>
+        <p>Training data comes from <strong>Financial PhraseBank</strong> (<code class="inline">sentences_allagree</code> — sentences where all annotators agreed on the label), sourced from HuggingFace. Impact labels aren't in the original dataset, so they're derived programmatically from sentiment.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Sentiment</th><th>→ Derived impact</th></tr></thead>
+            <tbody>
+              <tr><td>positive</td><td>bullish</td></tr>
+              <tr><td>neutral</td><td>neutral</td></tr>
+              <tr><td>negative</td><td>bearish</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Label distribution (2,264 examples)</h3>
+        <div class="table-wrap">
+          <table class="zebra">
+            <thead><tr><th>Sentiment</th><th class="num">Count</th><th>Impact</th><th class="num">Count</th></tr></thead>
+            <tbody>
+              <tr><td>neutral</td><td class="num tnum">1,391</td><td>neutral</td><td class="num tnum">1,391</td></tr>
+              <tr><td>positive</td><td class="num tnum">570</td><td>bullish</td><td class="num tnum">570</td></tr>
+              <tr><td>negative</td><td class="num tnum">303</td><td>bearish</td><td class="num tnum">303</td></tr>
+            </tbody>
+          </table>
+          <caption>Well above the 300+ recommended minimum, but neutral makes up 61% of the set — worth keeping in mind when reading accuracy.</caption>
+        </div>
+
+        <h3>Getting the data out of HuggingFace</h3>
+        <p><code class="inline">takala/financial_phrasebank</code> still ships as a loading script, and the installed <code class="inline">datasets</code> release (5.0.0) has dropped script-based dataset loading entirely — including on HuggingFace's own datasets-server, so no auto-converted Parquet mirror was available either. The fix: download <code class="inline">FinancialPhraseBank-v1.0.zip</code> directly from the repo via <code class="inline">huggingface_hub.hf_hub_download</code> and parse <code class="inline">Sentences_AllAgree.txt</code> by hand (latin-1 encoded, <code class="inline">sentence@label</code> per line) — the same data the script would have produced, without the script.</p>
+        <p>The resulting CSV passed <code class="inline">dataset_prep.py</code>'s <code class="inline">validate_csv</code> cleanly and was uploaded to Drive as <code class="inline">training_data.csv</code>.</p>
+      </section>
+
+      <section class="block" id="training-config">
+        <p class="section-eyebrow">06 · Hyperparameters</p>
+        <h2>Training Configuration</h2>
+        <div class="table-wrap">
+          <table class="zebra">
+            <thead><tr><th>Setting</th><th class="num">Value</th></tr></thead>
+            <tbody>
+              <tr><td>Epochs</td><td class="num tnum">3</td></tr>
+              <tr><td>Batch size</td><td class="num tnum">8</td></tr>
+              <tr><td>Learning rate</td><td class="num tnum">2e-5</td></tr>
+              <tr><td>Weight decay</td><td class="num tnum">0.01</td></tr>
+              <tr><td>Warmup steps</td><td class="num tnum">50</td></tr>
+              <tr><td>Max grad norm</td><td class="num tnum">1.0</td></tr>
+              <tr><td>Loss weight — sentiment</td><td class="num tnum">0.6</td></tr>
+              <tr><td>Loss weight — impact</td><td class="num tnum">0.4</td></tr>
+              <tr><td>Train / test split</td><td class="num tnum">1,811 / 453 (80/20, seed 42)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Sentiment is weighted higher in the combined loss (0.6 vs 0.4) since it's the primary task — impact is trained as a secondary signal derived from the same representation.</p>
+      </section>
+
+      <section class="block" id="results">
+        <p class="section-eyebrow">07 · What came out</p>
+        <h2>Training Run &amp; Results</h2>
+        <p>Full 3-epoch run completed in roughly <strong>43 minutes</strong> on CPU, 227 batches per epoch.</p>
+        <div class="table-wrap">
+          <table class="zebra">
+            <thead><tr><th>Epoch</th><th class="num">Avg loss</th><th>Sentiment acc.</th><th>Impact acc.</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>1</td><td class="num tnum">0.7282</td>
+                <td><div class="metric-cell"><span class="val tnum">96.7%</span><span class="bar"><span style="width:96.7%"></span></span></div></td>
+                <td><div class="metric-cell"><span class="val tnum">90.5%</span><span class="bar"><span style="width:90.5%"></span></span></div></td>
+              </tr>
+              <tr>
+                <td>2</td><td class="num tnum">0.2505</td>
+                <td><div class="metric-cell"><span class="val tnum">98.0%</span><span class="bar"><span style="width:98.0%"></span></span></div></td>
+                <td><div class="metric-cell"><span class="val tnum">96.7%</span><span class="bar"><span style="width:96.7%"></span></span></div></td>
+              </tr>
+              <tr>
+                <td><strong>3</strong></td><td class="num tnum"><strong>0.1639</strong></td>
+                <td><div class="metric-cell"><span class="val tnum"><strong>98.0%</strong></span><span class="bar"><span style="width:98.0%"></span></span></div></td>
+                <td><div class="metric-cell"><span class="val tnum"><strong>97.1%</strong></span><span class="bar"><span style="width:97.1%"></span></span></div></td>
+              </tr>
+            </tbody>
+          </table>
+          <caption>Accuracy measured on the 453-example held-out split, inside <code class="inline">train.py</code>'s own validation loop each epoch.</caption>
+        </div>
+
+        <div class="callout">
+          <strong>Read this with the neutral skew in mind.</strong> These figures clear every threshold in <code class="inline">evaluation.md</code> — including the 88%/82% "excellent" bar — but 61% of the training set is neutral. See the full evaluation below for the per-class breakdown, and <code class="inline">predict.py</code>'s demo headlines still haven't been run — do that before treating this as representative of BFSI-specific text.
+        </div>
+      </section>
+
+      <section class="block" id="evaluation">
+        <p class="section-eyebrow">08 · Held-out test set, class by class</p>
+        <h2>Full Evaluation</h2>
+        <p><code class="inline">evaluate.py</code> runs the trained model over the same 453-example held-out split and reports precision/recall/F1 per class, plus a confusion matrix — a finer-grained read than the training loop's own per-epoch accuracy above.</p>
+
+        <div class="table-wrap">
+          <table class="zebra">
+            <thead><tr><th></th><th>Class</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th><th class="num">Support</th></tr></thead>
+            <tbody>
+              <tr><td rowspan="3">Sentiment</td><td>positive</td><td class="num tnum">0.96</td><td class="num tnum">0.98</td><td class="num tnum">0.97</td><td class="num tnum">100</td></tr>
+              <tr><td>neutral</td><td class="num tnum">0.99</td><td class="num tnum">0.99</td><td class="num tnum">0.99</td><td class="num tnum">280</td></tr>
+              <tr><td>negative</td><td class="num tnum">0.96</td><td class="num tnum">0.95</td><td class="num tnum">0.95</td><td class="num tnum">73</td></tr>
+              <tr><td rowspan="3">Impact</td><td>bullish</td><td class="num tnum">0.94</td><td class="num tnum">0.94</td><td class="num tnum">0.94</td><td class="num tnum">100</td></tr>
+              <tr><td>neutral</td><td class="num tnum">0.98</td><td class="num tnum">0.99</td><td class="num tnum">0.98</td><td class="num tnum">280</td></tr>
+              <tr><td>bearish</td><td class="num tnum">0.96</td><td class="num tnum">0.93</td><td class="num tnum">0.94</td><td class="num tnum">73</td></tr>
+            </tbody>
+          </table>
+          <caption>Overall accuracy: 98% sentiment, 97% impact — consistent with the training-loop numbers above.</caption>
+        </div>
+
+        <h3>Confusion matrices</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Sentiment (rows = true, cols = predicted)</th><th class="num">positive</th><th class="num">neutral</th><th class="num">negative</th></tr></thead>
+            <tbody>
+              <tr><td>positive</td><td class="num tnum">98</td><td class="num tnum">2</td><td class="num tnum">0</td></tr>
+              <tr><td>neutral</td><td class="num tnum">0</td><td class="num tnum">277</td><td class="num tnum">3</td></tr>
+              <tr><td>negative</td><td class="num tnum">4</td><td class="num tnum">0</td><td class="num tnum">69</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Impact (rows = true, cols = predicted)</th><th class="num">bullish</th><th class="num">neutral</th><th class="num">bearish</th></tr></thead>
+            <tbody>
+              <tr><td>bullish</td><td class="num tnum">94</td><td class="num tnum">6</td><td class="num tnum">0</td></tr>
+              <tr><td>neutral</td><td class="num tnum">1</td><td class="num tnum">276</td><td class="num tnum">3</td></tr>
+              <tr><td>bearish</td><td class="num tnum">5</td><td class="num tnum">0</td><td class="num tnum">68</td></tr>
+            </tbody>
+          </table>
+          <caption>Most confusion sits between adjacent classes and neutral, in both directions — expected, since impact is derived 1:1 from sentiment.</caption>
+        </div>
+      </section>
+
+      <section class="block" id="storage">
+        <p class="section-eyebrow">09 · Where things live</p>
+        <h2>Storage &amp; Drive Integration</h2>
+        <p>Model weights and training data live on Google Drive, not locally, all routed through <code class="inline">drive_storage.py</code>. One-time OAuth setup via <code class="inline">setup_drive.py</code> required adding the account as a test user on the OAuth consent screen (the app is in Testing publish status) before authentication would succeed.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Drive folder: <code class="inline">bfsi-sentiment-model</code></th></tr></thead>
+            <tbody>
+              <tr><td>training_data.csv</td></tr>
+              <tr><td>lora_adapters_adapter_config.json</td></tr>
+              <tr><td>lora_adapters_adapter_model.safetensors</td></tr>
+              <tr><td>lora_adapters_README.md</td></tr>
+              <tr><td>sentiment_head.pt</td></tr>
+              <tr><td>impact_head.pt</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="block" id="issues">
+        <p class="section-eyebrow">10 · Incident log</p>
+        <h2>Issues Found &amp; Fixed</h2>
+
+        <div class="incident">
+          <h4>Financial PhraseBank wouldn't load</h4>
+          <p><strong>Cause:</strong> <code class="inline">datasets</code> 5.0.0 dropped support for loading-script datasets; <code class="inline">takala/financial_phrasebank</code> still ships one, and no auto-converted Parquet mirror existed.</p>
+          <p><strong>Fix:</strong> downloaded the raw zip via <code class="inline">huggingface_hub.hf_hub_download</code> and parsed <code class="inline">Sentences_AllAgree.txt</code> directly.</p>
+        </div>
+
+        <div class="incident">
+          <h4>Training crashed on batch 0 — <code class="inline">ValueError: too many dimensions 'str'</code></h4>
+          <p><strong>Cause:</strong> in <code class="inline">dataset_prep.py</code>, a batched <code class="inline">.map()</code> both removed and re-added columns named <code class="inline">sentiment_label</code> / <code class="inline">impact_label</code>. <code class="inline">datasets</code> 5.0.0 unified the output schema back to the original string dtype, silently turning the int-encoded labels back into strings.</p>
+          <p><strong>Fix:</strong> encode labels to ints on the pandas <code class="inline">DataFrame</code> before constructing the HF <code class="inline">Dataset</code>, avoiding the same-name column collision entirely.</p>
+        </div>
+
+        <div class="incident">
+          <h4>Training process killed twice, no traceback</h4>
+          <p><strong>Cause:</strong> attaching a live <code class="inline">tail -f</code> monitor to the log file the background training process was writing to caused the process itself to be killed at the same point each time (right after model load).</p>
+          <p><strong>Fix:</strong> ran training in the background without a concurrent tail; it completed cleanly end to end.</p>
+        </div>
+
+        <div class="incident">
+          <h4>Adapter filename mismatch — <code class="inline">.bin</code> vs <code class="inline">.safetensors</code></h4>
+          <p><strong>Cause:</strong> the installed <code class="inline">peft</code> saves adapters as <code class="inline">adapter_model.safetensors</code>; <code class="inline">drive_storage.py</code>'s <code class="inline">download_model_from_drive()</code> hardcoded <code class="inline">adapter_model.bin</code>, which doesn't exist on Drive.</p>
+          <p><strong>Fix:</strong> try the <code class="inline">.safetensors</code> filename first, fall back to <code class="inline">.bin</code>. Verified by downloading into a scratch directory and loading the model from it.</p>
+        </div>
+
+        <div class="incident">
+          <h4>Evaluation report showed metrics under the wrong class name</h4>
+          <p><strong>Cause:</strong> <code class="inline">sklearn</code>'s <code class="inline">classification_report</code>/<code class="inline">confusion_matrix</code> order classes alphabetically unless <code class="inline">labels=</code> is passed explicitly — but <code class="inline">target_names</code> is applied positionally regardless. <code class="inline">evaluate.py</code> passed <code class="inline">target_names</code> without <code class="inline">labels</code>, so e.g. the row printed as "positive" actually held negative's numbers, and the impact report was rotated by a full position.</p>
+          <p><strong>Fix:</strong> pass an explicit <code class="inline">labels=</code> order matching <code class="inline">target_names</code> to both calls, and label the confusion matrix axes with that same order.</p>
+        </div>
+      </section>
+
+      <section class="block" id="next">
+        <p class="section-eyebrow">11 · Open items</p>
+        <h2>Next Steps</h2>
+        <ol class="tight">
+          <li>Run <code class="inline">predict.py</code>'s demo headlines to sanity-check real inference output, not just held-out-set accuracy.</li>
+          <li>If BFSI-specific validation later shows the model over-predicting "neutral," revisit the 61%-neutral training distribution.</li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="colophon">
+    Generated from the SLM_Training project session — CPU-only training, Google Drive-backed storage, FinBERT + LoRA dual-head classifier.
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+    var sections = links.map(function (a) {
+      return document.getElementById(a.getAttribute('href').slice(1));
+    });
+    if (!('IntersectionObserver' in window)) return;
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var idx = sections.indexOf(entry.target);
+        if (idx === -1) return;
+        if (entry.isIntersecting) {
+          links.forEach(function (l) { l.classList.remove('active'); });
+          links[idx].classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+    sections.forEach(function (s) { if (s) obs.observe(s); });
+  })();
+</script>

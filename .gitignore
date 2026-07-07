@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Project-specific: BFSI Sentiment SLM ---
+# Credentials — never commit
+credentials.json
+token.json
+
+# Data and model artifacts (stored on Google Drive, not in git)
+data/training_data.csv
+output/
